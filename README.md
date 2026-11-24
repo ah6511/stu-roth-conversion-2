@@ -14,6 +14,41 @@ uv pip install --python .venv/bin/python -e ".[dev]"
 
 Open http://127.0.0.1:8000 in your browser (interactive OpenAPI docs at http://127.0.0.1:8000/docs).
 
+## Docker Containerization
+
+The repository includes containerization and deployment configuration across `Dockerfile`, `docker-compose.yml`, `.dockerignore`, and `deployment.md`.
+
+### Docker Compose (Recommended for Local Container Run)
+
+```bash
+docker compose up --build -d
+docker compose logs -f
+docker compose down
+```
+
+- **Port binding & environment overrides** (`docker-compose.yml`):
+  - `HOST_BIND` (default `127.0.0.1`): host interface to bind; set `HOST_BIND=0.0.0.0` to expose externally.
+  - `HOST_PORT` (default `8000`): host port mapped to container port `8000`.
+- **Container hardening & runtime setup**:
+  - Runs as a non-root system user (`app`, UID/GID `10001`).
+  - Uses a read-only root filesystem (`read_only: true`) with an ephemeral `/tmp` tmpfs mount.
+  - Drops all Linux capabilities (`cap_drop: [ALL]`) and enforces `no-new-privileges:true`.
+  - Uses a stateless single-service bridge network (`app-net`) with no external database or cache required.
+  - Includes a built-in HTTP `healthcheck` (30s interval, 5s timeout, 3 retries, 10s start period).
+
+### Standalone Docker Build & Run
+
+`Dockerfile` uses a multi-stage `python:3.14-slim` build (`builder` stage installs Python dependencies into `/opt/venv`; `runtime` stage copies only the venv and application assets under the non-root `app` user and runs `uvicorn` on `0.0.0.0:8000` with an HTTP `HEALTHCHECK` against `/api/health`). `.dockerignore` excludes `.git`, `.venv`, caches, `.env` files, `tests`, and local artifacts from the Docker build context.
+
+```bash
+docker build -t stu-roth-conversion:latest .
+docker run --rm -p 127.0.0.1:8000:8000 stu-roth-conversion:latest
+```
+
+### Cloud Deployment (AWS Fargate / ECR)
+
+See [`deployment.md`](deployment.md) for AWS ECR login, image tagging, and push commands targeting AWS Fargate.
+
 ## Architecture
 
 - **`backend/constants.py`**: 2026 MFJ ordinary & long-term capital gains brackets, `$32,200` standard deduction, `3.8%` NIIT (`$250,000` MFJ threshold), IRS Uniform Lifetime Table RMD divisors (Born 1951–1959 starting age 73; Born 1960+ starting age 75), 2026 Medicare IRMAA tiers, Social Security profiles, and 1996–2025 historical equity returns.
@@ -30,6 +65,7 @@ Open http://127.0.0.1:8000 in your browser (interactive OpenAPI docs at http://1
   - `run_dsb_vs_rate`: Binary-search max sustainable spending budget (`DSB`) across `0%–10%` portfolio return rates.
 - **`backend/main.py`**: FastAPI service exposing REST endpoints and serving `frontend/`.
 - **`frontend/`**: Accessible HTML5, modern CSS (`light-dark()`, container queries, scroll-driven tab fades), and modular ES modules (`api.js`, `charts.js`, `app.js`) with interactive SVG charts.
+- **`Dockerfile` / `docker-compose.yml` / `.dockerignore` / `deployment.md`**: Multi-stage container build, hardened Compose service configuration, build-context exclusions, and AWS ECR/Fargate deployment instructions.
 
 ## API Endpoints
 

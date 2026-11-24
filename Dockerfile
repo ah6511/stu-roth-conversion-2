@@ -11,9 +11,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy only requirements first for layer caching
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# Copy only pyproject.toml first for layer caching
+COPY pyproject.toml .
+RUN python -c "import subprocess, sys, tomllib; deps = tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies']; subprocess.check_call([sys.executable, '-m', 'pip', 'install', *deps])"
 
 # ---------- Runtime ----------
 FROM python:3.14-slim AS runtime
@@ -31,8 +31,8 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 
 # Application source (changes most often -> last)
-COPY --chown=app:app app ./app
-COPY --chown=app:app static ./static
+COPY --chown=app:app backend ./backend
+COPY --chown=app:app frontend ./frontend
 
 USER app
 
@@ -42,5 +42,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).status == 200 else 1)"]
 
 # Must bind 0.0.0.0 inside the container so the published port is reachable
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 

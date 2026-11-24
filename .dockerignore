@@ -19,4 +19,7 @@ docker-compose.yml
 result.*
 monte_carlo_simulation.txt
 *.csv
+*.xlsx
+*.egg-info
+deployment.md
 
