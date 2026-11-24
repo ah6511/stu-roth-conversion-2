@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    try {
+      document.querySelector('meta[name="color-scheme"]').content =
+        localStorage.getItem("color-scheme") ?? "light dark";
+    } catch (e) {}
+  </script>
+  <title>Roth Conversion &amp; Retirement Strategy Planner</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to analysis workspace</a>
+
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-mark" aria-hidden="true">RC</div>
+      <div>
+        <h1>Roth Conversion &amp; Retirement Planner</h1>
+        <p class="subtitle">80-Year Tax-Bracket Optimization Engine &middot; 2026 MFJ Rules</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="preset-group" role="group" aria-label="Scenario presets">
+        <button type="button" class="btn btn-secondary btn-sm" data-preset="model3_default">
+          Model 3 ($3.0M @ 3.5%)
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" data-preset="datapage2_5m">
+          High-Growth ($5.0M @ 7.0%)
+        </button>
+      </div>
+
+      <button type="button" id="theme-toggle" class="btn btn-icon" aria-label="Toggle color theme">
+        <span class="theme-icon-dark" aria-hidden="true">&#9790;</span>
+        <span class="theme-label-dark">Dark</span>
+        <span class="theme-icon-light" aria-hidden="true">&#9728;</span>
+        <span class="theme-label-light">Light</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <section class="assumptions-panel" aria-label="Scenario inputs">
+      <form id="scenario-form" aria-labelledby="scenario-form-title" novalidate>
+        <div class="assumptions-head">
+          <h2 id="scenario-form-title">Scenario Assumptions</h2>
+          <span id="override-badge" class="badge badge-neutral" hidden>Per-Year DTB Active</span>
+        </div>
+
+        <div id="form-error-summary" class="error-summary" role="alert" hidden></div>
+
+        <div class="assumptions-grid">
+          <fieldset class="input-group">
+            <legend>Ages &amp; Horizon</legend>
+            <div class="field-grid-3">
+              <div class="field">
+                <label for="primary_age">Primary Age</label>
+                <input id="primary_age" name="primary_age" type="number" inputmode="numeric" min="40" max="100" step="1" required aria-describedby="err-primary_age">
+                <span class="field-error" id="err-primary_age" hidden></span>
+              </div>
+              <div class="field">
+                <label for="secondary_age">Spouse Age</label>
+                <input id="secondary_age" name="secondary_age" type="number" inputmode="numeric" min="40" max="100" step="1" required aria-describedby="err-secondary_age">
+                <span class="field-error" id="err-secondary_age" hidden></span>
+              </div>
+              <div class="field">
+                <label for="eval_age">Eval Age</label>
+                <input id="eval_age" name="eval_age" type="number" inputmode="numeric" min="67" max="140" step="1" required aria-describedby="err-eval_age">
+                <span class="field-error" id="err-eval_age" hidden></span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="input-group">
+            <legend>Brokerage Account (Taxable)</legend>
+            <div class="field-grid-2">
+              <div class="field">
+                <label for="brkg_balance">Balance ($)</label>
+                <input id="brkg_balance" name="brkg_balance" type="number" inputmode="decimal" min="0" step="10000" required aria-describedby="err-brkg_balance">
+                <span class="field-error" id="err-brkg_balance" hidden></span>
+              </div>
+              <div class="field">
+                <label for="brkg_rate">Return Rate (%)</label>
+                <input id="brkg_rate" name="brkg_rate" type="number" inputmode="decimal" min="-50" max="50" step="0.1" required aria-describedby="err-brkg_rate">
+                <span class="field-error" id="err-brkg_rate" hidden></span>
+              </div>
+              <div class="field">
+                <label for="brkg_gain_pct">Unrealized Gain (%)</label>
+                <input id="brkg_gain_pct" name="brkg_gain_pct" type="number" inputmode="decimal" min="0" max="100" step="1" required aria-describedby="err-brkg_gain_pct">
+                <span class="field-error" id="err-brkg_gain_pct" hidden></span>
+              </div>
+              <div class="field">
+                <label for="brkg_turnover_rate">Turnover Rate (%)</label>
+                <input id="brkg_turnover_rate" name="brkg_turnover_rate" type="number" inputmode="decimal" min="0" max="100" step="1" required aria-describedby="err-brkg_turnover_rate">
+                <span class="field-error" id="err-brkg_turnover_rate" hidden></span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="input-group">
+            <legend>401(k) &amp; Roth Accounts</legend>
+            <div class="field-grid-2">
+              <div class="field">
+                <label for="primary_401k_balance">Primary 401(k) ($)</label>
+                <input id="primary_401k_balance" name="primary_401k_balance" type="number" inputmode="decimal" min="0" step="10000" required aria-describedby="err-primary_401k_balance">
+                <span class="field-error" id="err-primary_401k_balance" hidden></span>
+              </div>
+              <div class="field">
+                <label for="secondary_401k_balance">Spouse 401(k) ($)</label>
+                <input id="secondary_401k_balance" name="secondary_401k_balance" type="number" inputmode="decimal" min="0" step="10000" required aria-describedby="err-secondary_401k_balance">
+                <span class="field-error" id="err-secondary_401k_balance" hidden></span>
+              </div>
+              <div class="field">
+                <label for="k401_rate">401(k) Return (%)</label>
+                <input id="k401_rate" name="k401_rate" type="number" inputmode="decimal" min="-50" max="50" step="0.1" required aria-describedby="err-k401_rate">
+                <span class="field-error" id="err-k401_rate" hidden></span>
+              </div>
+              <div class="field">
+                <label for="roth_balance">Roth Balance ($)</label>
+                <input id="roth_balance" name="roth_balance" type="number" inputmode="decimal" min="0" step="10000" required aria-describedby="err-roth_balance">
+                <span class="field-error" id="err-roth_balance" hidden></span>
+              </div>
+              <div class="field">
+                <label for="roth_rate">Roth Return (%)</label>
+                <input id="roth_rate" name="roth_rate" type="number" inputmode="decimal" min="-50" max="50" step="0.1" required aria-describedby="err-roth_rate">
+                <span class="field-error" id="err-roth_rate" hidden></span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="input-group">
+            <legend>Spending &amp; Conversion Policy</legend>
+            <div class="field-stack">
+              <div class="field-grid-2">
+                <div class="field">
+                  <label for="dsb">Budget / DSB ($)</label>
+                  <input id="dsb" name="dsb" type="number" inputmode="decimal" min="0" step="5000" required aria-describedby="err-dsb">
+                  <span class="field-error" id="err-dsb" hidden></span>
+                </div>
+                <div class="field">
+                  <label for="dtb">Bracket / DTB ($)</label>
+                  <input id="dtb" name="dtb" type="number" inputmode="decimal" min="0" step="1000" required aria-describedby="err-dtb">
+                  <span class="field-error" id="err-dtb" hidden></span>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="withdraw_order">Withdrawal Order</label>
+                <select id="withdraw_order" name="withdraw_order">
+                  <option value="401K-ROTH-BRKG">401K-ROTH-BRKG</option>
+                  <option value="401K-BRKG-ROTH">401K-BRKG-ROTH</option>
+                  <option value="ROTH-BRKG-401K">ROTH-BRKG-401K</option>
+                  <option value="ROTH-401K-BRKG">ROTH-401K-BRKG</option>
+                  <option value="BRKG-ROTH-401K">BRKG-ROTH-401K</option>
+                  <option value="BRKG-401K-ROTH">BRKG-401K-ROTH</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="ss_profile">Social Security &amp; Income</label>
+                <select id="ss_profile" name="ss_profile" aria-expanded="false" aria-controls="custom-ss-panel">
+                  <option value="Profile 1">Profile 1 ($50k yr 2+, +$50k yr 6+)</option>
+                  <option value="Profile 0">Profile 0 (Delayed age 70: $63.4k + $48.5k)</option>
+                  <option value="Profile 2">Profile 2 ($42k/$21k yr 6, $38.2k/$19.1k yr 7+)</option>
+                  <option value="Profile Test">Profile Test</option>
+                  <option value="None">None ($0/yr)</option>
+                  <option value="Custom">Custom Schedule...</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="custom-ss-panel" class="custom-ss-panel" hidden>
+              <div class="field-grid-2">
+                <div class="field">
+                  <label for="custom_p_start">Primary SS Age</label>
+                  <input id="custom_p_start" name="custom_p_start" type="number" min="62" max="75" value="67">
+                </div>
+                <div class="field">
+                  <label for="custom_p_amt">Primary SS ($/yr)</label>
+                  <input id="custom_p_amt" name="custom_p_amt" type="number" min="0" step="1000" value="50000">
+                </div>
+                <div class="field">
+                  <label for="custom_s_start">Spouse SS Age</label>
+                  <input id="custom_s_start" name="custom_s_start" type="number" min="62" max="75" value="67">
+                </div>
+                <div class="field">
+                  <label for="custom_s_amt">Spouse SS ($/yr)</label>
+                  <input id="custom_s_amt" name="custom_s_amt" type="number" min="0" step="1000" value="50000">
+                </div>
+                <div class="field">
+                  <label for="custom_wage_amt">Annual Wage ($)</label>
+                  <input id="custom_wage_amt" name="custom_wage_amt" type="number" min="0" step="5000" value="0">
+                </div>
+                <div class="field">
+                  <label for="custom_wage_end">Wage Until Age</label>
+                  <input id="custom_wage_end" name="custom_wage_end" type="number" min="40" max="90" value="66">
+                </div>
+              </div>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="assumptions-footer">
+          <div class="form-actions">
+            <button type="submit" id="btn-run-sim" class="btn btn-primary">
+              Run 80-Year Projection
+            </button>
+            <button type="button" id="btn-quick-sweep" class="btn btn-secondary">
+              Optimize Across All 6 Orders
+            </button>
+            <button type="button" id="btn-clear-overrides" class="btn btn-ghost btn-sm" hidden>
+              Clear Per-Year DTB Overrides
+            </button>
+          </div>
+
+          <div id="form-status" class="status-line" role="status" aria-live="polite"></div>
+        </div>
+      </form>
+    </section>
+
+    <main id="main-content" class="workspace">
+      <section class="kpi-grid" aria-label="Key financial outcomes">
+        <article class="kpi-card">
+          <span class="kpi-label">Net Worth @ Year 0</span>
+          <strong class="kpi-value" id="kpi-nw0">--</strong>
+          <span class="kpi-sub" id="kpi-yr0-ret">Year 0 return: --</span>
+        </article>
+        <article class="kpi-card kpi-highlight">
+          <span class="kpi-label" id="kpi-nw-eval-label">Net Worth @ Age 96</span>
+          <strong class="kpi-value" id="kpi-nw-eval">--</strong>
+          <span class="kpi-sub" id="kpi-wo-sub">Order: --</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Accum. Tax (Time-Valued)</span>
+          <strong class="kpi-value" id="kpi-acc-tax-tv">--</strong>
+          <span class="kpi-sub" id="kpi-acc-tax-nom">Nominal: --</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Total Roth Converted</span>
+          <strong class="kpi-value" id="kpi-roth-conv">--</strong>
+          <span class="kpi-sub" id="kpi-cg-tax-tv">Cap Gain TV: --</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Spending Shortfall Age</span>
+          <strong class="kpi-value" id="kpi-shortfall">--</strong>
+          <span class="kpi-sub" id="kpi-depletion">Zero balance age: --</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Peak Medicare IRMAA</span>
+          <strong class="kpi-value" id="kpi-irmaa-tier">--</strong>
+          <span class="kpi-sub" id="kpi-irmaa-total">Lifetime surcharge: --</span>
+        </article>
+      </section>
+
+      <div class="tabs-shell">
+        <div class="tablist scroller" role="tablist" aria-label="Analysis sections">
+          <button type="button" role="tab" id="tab-projection" aria-selected="true">
+            Projection &amp; Cash Flow
+          </button>
+          <button type="button" role="tab" id="tab-optimizer" aria-selected="false">
+            Strategy Optimizer (6 Orders &times; DTB)
+          </button>
+          <button type="button" role="tab" id="tab-finetune" aria-selected="false">
+            Per-Year Fine-Tune &amp; Sensitivity
+          </button>
+          <button type="button" role="tab" id="tab-calculators" aria-selected="false">
+            Tax Calculators &amp; Reference
+          </button>
+        </div>
+
+        <section role="tabpanel" id="panel-projection" aria-labelledby="tab-projection" tabindex="0">
+          <div class="panel-body">
+            <div class="chart-grid-2">
+              <div class="card chart-card">
+                <div class="card-head">
+                  <div>
+                    <h3>Portfolio Balances &amp; Net Worth by Age</h3>
+                    <p class="card-sub">Taxable Brokerage, 401(k), Roth IRA, and combined Net Worth</p>
+                  </div>
+                </div>
+                <div id="chart-balances" class="chart-host"></div>
+              </div>
+
+              <div class="card chart-card">
+                <div class="card-head">
+                  <div>
+                    <h3>Annual Taxes, Roth Conversions &amp; Spending</h3>
+                    <p class="card-sub">First 45 projection years &middot; Federal tax breakdown vs conversion</p>
+                  </div>
+                </div>
+                <div id="chart-cashflow" class="chart-host"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <h3 id="milestone-caption">Key Age Milestones</h3>
+                  <p class="card-sub">Quick snapshot across retirement, RMD, and evaluation ages</p>
+                </div>
+              </div>
+              <div tabindex="0" role="region" aria-labelledby="milestone-caption" class="table-wrapper">
+                <table class="data-table stackable-table" id="milestone-table">
+                  <caption class="visually-hidden">Key retirement age milestones</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Age</th>
+                      <th scope="col">Year</th>
+                      <th scope="col">Brokerage</th>
+                      <th scope="col">401(k)</th>
+                      <th scope="col">Roth IRA</th>
+                      <th scope="col">Net Worth</th>
+                      <th scope="col">Roth Conv.</th>
+                      <th scope="col">Federal Tax</th>
+                      <th scope="col">Eff. Rate</th>
+                      <th scope="col">IRMAA Tier</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head wrap-head">
+                <div>
+                  <h3 id="proj-table-caption">80-Year Annual Projection</h3>
+                  <p class="card-sub">Sticky age header &middot; Audit check confirms Total Funding = Total Expense</p>
+                </div>
+                <div class="table-controls">
+                  <fieldset class="radio-pills" aria-label="Projection column groups">
+                    <legend class="visually-hidden">Column view</legend>
+                    <input type="radio" id="col-view-core" name="col_view" value="core" checked>
+                    <label for="col-view-core">Balances &amp; Flow</label>
+                    <input type="radio" id="col-view-tax" name="col_view" value="tax">
+                    <label for="col-view-tax">Taxes &amp; IRMAA</label>
+                    <input type="radio" id="col-view-all" name="col_view" value="all">
+                    <label for="col-view-all">All Columns</label>
+                  </fieldset>
+                  <button type="button" id="btn-export-csv" class="btn btn-secondary btn-sm">Export CSV</button>
+                </div>
+              </div>
+
+              <div tabindex="0" role="region" aria-labelledby="proj-table-caption" class="table-wrapper matrix-wrapper">
+                <table class="data-table matrix-table" id="projection-table">
+                  <caption class="visually-hidden">Full 80-year annual retirement projection</caption>
+                  <thead></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section role="tabpanel" id="panel-optimizer" aria-labelledby="tab-optimizer" hidden="until-found">
+          <div class="panel-body">
+            <div class="card">
+              <div class="card-head wrap-head">
+                <div>
+                  <h3>3-Stage Multi-Order DTB Sweep (Coarse $100k &rarr; $10k &rarr; $1k)</h3>
+                  <p class="card-sub">Evaluates every withdrawal order across Desired Tax Brackets to maximize Net Worth at Evaluation Age</p>
+                </div>
+                <div class="inline-controls">
+                  <label class="inline-field" for="sweep_dtb_max">
+                    Max DTB ($)
+                    <input id="sweep_dtb_max" type="number" min="200000" max="5000000" step="100000" value="2000000">
+                  </label>
+                  <button type="button" id="btn-run-sweep" class="btn btn-primary">Run 6-Order Sweep</button>
+                </div>
+              </div>
+              <div id="sweep-meta" class="meta-bar" role="status" aria-live="polite">
+                Click "Run 6-Order Sweep" to compare all 6 withdrawal orders across the DTB range.
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h3 id="sweep-rank-caption">Ranked Withdrawal Order Summary</h3>
+              </div>
+              <div tabindex="0" role="region" aria-labelledby="sweep-rank-caption" class="table-wrapper">
+                <table class="data-table stackable-table" id="sweep-summary-table">
+                  <caption class="visually-hidden">Ranked optimal DTB results by withdrawal order</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Rank</th>
+                      <th scope="col">Withdrawal Order</th>
+                      <th scope="col">Optimal DTB</th>
+                      <th scope="col">Net Worth @ Eval</th>
+                      <th scope="col">Accum. Tax (TV)</th>
+                      <th scope="col">Total Roth Conv.</th>
+                      <th scope="col">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="chart-grid-2">
+              <div class="card chart-card">
+                <div class="card-head">
+                  <div>
+                    <h3>Net Worth vs Desired Tax Bracket (DTB)</h3>
+                    <p class="card-sub">All 6 withdrawal orders &middot; Stars mark peak Net Worth</p>
+                  </div>
+                </div>
+                <div id="chart-sweep-dtb" class="chart-host"></div>
+              </div>
+
+              <div class="card chart-card">
+                <div class="card-head">
+                  <div>
+                    <h3>Net Worth vs Time-Valued Accumulated Tax</h3>
+                    <p class="card-sub">Tax-efficiency frontier across withdrawal orders</p>
+                  </div>
+                </div>
+                <div id="chart-sweep-tax" class="chart-host"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section role="tabpanel" id="panel-finetune" aria-labelledby="tab-finetune" hidden="until-found">
+          <div class="panel-body">
+            <div class="card">
+              <div class="card-head wrap-head">
+                <div>
+                  <h3>Per-Year DTB Coordinate Ascent (Fine-Tune Individual Years)</h3>
+                  <p class="card-sub">Refines each year's DTB independently until the 401(k) balance reaches zero</p>
+                </div>
+                <div class="inline-controls">
+                  <label class="inline-field" for="opt_delta">
+                    Window &plusmn;($)
+                    <input id="opt_delta" type="number" min="10000" max="300000" step="10000" value="50000">
+                  </label>
+                  <label class="inline-field" for="opt_step">
+                    Step ($)
+                    <input id="opt_step" type="number" min="1000" max="25000" step="1000" value="5000">
+                  </label>
+                  <button type="button" id="btn-run-peryear" class="btn btn-primary">Optimize Per-Year DTB</button>
+                  <button type="button" id="btn-apply-peryear" class="btn btn-secondary" disabled>Apply to Projection</button>
+                </div>
+              </div>
+              <div id="peryear-meta" class="meta-bar" role="status" aria-live="polite">
+                Baseline Net Worth vs fine-tuned per-year schedule will appear here.
+              </div>
+              <div id="chart-peryear" class="chart-host"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-head wrap-head">
+                <div>
+                  <h3>Max Sustainable Spending (DSB) vs Return Rate (0% &ndash; 10%)</h3>
+                  <p class="card-sub">Finds the highest spending budget that keeps Net Worth &gt; $1,000 at evaluation age</p>
+                </div>
+                <div class="inline-controls">
+                  <button type="button" id="btn-run-dsb-rate" class="btn btn-primary">Run Rate Sensitivity</button>
+                </div>
+              </div>
+              <div id="dsb-rate-meta" class="meta-bar" role="status" aria-live="polite">
+                Evaluates uniform portfolio return rates from 0.0% to 10.0% in 0.5% increments.
+              </div>
+              <div class="chart-grid-2">
+                <div id="chart-dsb-rate" class="chart-host"></div>
+                <div tabindex="0" role="region" aria-labelledby="dsb-rate-caption" class="table-wrapper">
+                  <table class="data-table stackable-table" id="dsb-rate-table">
+                    <caption id="dsb-rate-caption" class="visually-hidden">Maximum sustainable spending by return rate</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Return Rate</th>
+                        <th scope="col">Max DSB</th>
+                        <th scope="col">Optimal DTB</th>
+                        <th scope="col">Net Worth @ Eval</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section role="tabpanel" id="panel-calculators" aria-labelledby="tab-calculators" hidden="until-found">
+          <div class="panel-body">
+            <div class="chart-grid-2">
+              <div class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Federal Ordinary Income &amp; Inverse Tax Calculator</h3>
+                    <p class="card-sub">2026 MFJ brackets + closed-form recursive X = F(X + B) solver</p>
+                  </div>
+                </div>
+                <form id="income-tax-form" novalidate>
+                  <fieldset class="radio-group">
+                    <legend>Calculation Mode</legend>
+                    <div class="radio-row">
+                      <input type="radio" id="it-mode-forward" name="it_mode" value="forward" checked>
+                      <label for="it-mode-forward">Forward Tax</label>
+                    </div>
+                    <div class="radio-row">
+                      <input type="radio" id="it-mode-inv-sum" name="it_mode" value="inverse_sum">
+                      <label for="it-mode-inv-sum">Inverse from (Income + Tax)</label>
+                    </div>
+                    <div class="radio-row">
+                      <input type="radio" id="it-mode-inv-tax" name="it_mode" value="inverse_tax">
+                      <label for="it-mode-inv-tax">Inverse from Federal Tax</label>
+                    </div>
+                    <div class="radio-row">
+                      <input type="radio" id="it-mode-rec" name="it_mode" value="recursive_formula1">
+                      <label for="it-mode-rec">Recursive Funding X = F(X + B)</label>
+                    </div>
+                  </fieldset>
+
+                  <div class="field-grid-2">
+                    <div class="field">
+                      <label for="it_amount">Input Amount ($)</label>
+                      <input id="it_amount" name="it_amount" type="number" min="0" step="100" value="250000" required>
+                    </div>
+                    <div class="field">
+                      <label for="it_enrolled">Medicare Enrollees (0&ndash;2)</label>
+                      <input id="it_enrolled" name="it_enrolled" type="number" min="0" max="2" step="1" value="2" required>
+                    </div>
+                  </div>
+                  <div class="checkbox-row">
+                    <input type="checkbox" id="it_std_ded" name="it_std_ded" checked>
+                    <label for="it_std_ded">Apply 2026 MFJ Standard Deduction ($32,200)</label>
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-sm">Calculate Income Tax</button>
+                </form>
+                <div id="income-tax-result" class="calc-result" role="status" aria-live="polite"></div>
+              </div>
+
+              <div class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Capital Gains, NIIT &amp; Gross-Up Calculator</h3>
+                    <p class="card-sub">0%/15%/20% LTCG + 3.8% NIIT (&gt; $250k MAGI) + Formula 2 gross-up</p>
+                  </div>
+                </div>
+                <form id="cap-gain-form" novalidate>
+                  <div class="field-grid-2">
+                    <div class="field">
+                      <label for="cg_ord">Ordinary Income ($)</label>
+                      <input id="cg_ord" name="cg_ord" type="number" min="0" step="1000" value="200000" required>
+                    </div>
+                    <div class="field">
+                      <label for="cg_gain">Capital Gain ($)</label>
+                      <input id="cg_gain" name="cg_gain" type="number" min="0" step="1000" value="80000" required>
+                    </div>
+                  </div>
+                  <div class="checkbox-row">
+                    <input type="checkbox" id="cg_recursive" name="cg_recursive">
+                    <label for="cg_recursive">Solve Recursive Brokerage Withdrawal Gross-Up</label>
+                  </div>
+                  <div id="cg-rec-fields" class="field-grid-2" hidden>
+                    <div class="field">
+                      <label for="cg_dwd">Desired Cash Withdrawal ($)</label>
+                      <input id="cg_dwd" name="cg_dwd" type="number" min="0" step="1000" value="100000">
+                    </div>
+                    <div class="field">
+                      <label for="cg_cgp">Capital Gain Portion (0&ndash;1)</label>
+                      <input id="cg_cgp" name="cg_cgp" type="number" min="0" max="1" step="0.01" value="0.5">
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-sm">Calculate Capital Gains</button>
+                </form>
+                <div id="cap-gain-result" class="calc-result" role="status" aria-live="polite"></div>
+              </div>
+            </div>
+
+            <div class="chart-grid-2">
+              <div class="card">
+                <div class="card-head">
+                  <h3 id="ref-tax-caption">2026 Federal Ordinary &amp; LTCG Brackets (MFJ)</h3>
+                </div>
+                <div tabindex="0" role="region" aria-labelledby="ref-tax-caption" class="table-wrapper">
+                  <table class="data-table stackable-table" id="ref-brackets-table">
+                    <caption class="visually-hidden">2026 Married Filing Jointly federal income tax brackets</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Rate</th>
+                        <th scope="col">Taxable Lower</th>
+                        <th scope="col">Taxable Upper</th>
+                        <th scope="col">Base Tax</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-head">
+                  <h3 id="ref-irmaa-caption">2026 Medicare IRMAA Surcharge Tiers (MFJ)</h3>
+                </div>
+                <div tabindex="0" role="region" aria-labelledby="ref-irmaa-caption" class="table-wrapper">
+                  <table class="data-table stackable-table" id="ref-irmaa-table">
+                    <caption class="visually-hidden">2026 Medicare IRMAA monthly surcharge schedule</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Tier</th>
+                        <th scope="col">MFJ MAGI Range</th>
+                        <th scope="col">Part B / mo</th>
+                        <th scope="col">Part D / mo</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head wrap-head">
+                <div>
+                  <h3 id="ref-hist-caption">Historical Equity Returns (1996&ndash;2025)</h3>
+                  <p class="card-sub" id="historic-cagr-summary">30-Year CAGR summary loading...</p>
+                </div>
+              </div>
+              <div tabindex="0" role="region" aria-labelledby="ref-hist-caption" class="table-wrapper matrix-wrapper">
+                <table class="data-table stackable-table" id="ref-historic-table">
+                  <caption class="visually-hidden">30-year S&amp;P 500, DJIA, and Nasdaq-100 annual returns</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Year</th>
+                      <th scope="col">S&amp;P 500</th>
+                      <th scope="col">Dow Jones (DJIA)</th>
+                      <th scope="col">Nasdaq-100</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="chart-tooltip" class="chart-tooltip" role="status" aria-hidden="true" hidden></div>
+
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
