@@ -22,6 +22,7 @@ const state = {
   sweep: null,
   perYearResult: null,
   dtbOverrides: null,
+  legacyExcelRmd: false,
   colView: "core",
   simAbort: null,
   optAbort: null,
@@ -155,6 +156,7 @@ function applyPresetParams(params) {
     }
     clearFieldError(input);
   }
+  state.legacyExcelRmd = Boolean(params.legacy_excel_rmd);
   state.dtbOverrides = null;
   updateOverrideBadge();
   syncCustomSsVisibility();
@@ -196,6 +198,7 @@ function readScenarioPayload() {
     dtb: getNum("dtb"),
     withdraw_order: form.elements.namedItem("withdraw_order").value,
     ss_profile: ssProf === "Custom" ? "None" : ssProf,
+    legacy_excel_rmd: Boolean(state.legacyExcelRmd),
   };
 
   if (ssProf === "Custom") {

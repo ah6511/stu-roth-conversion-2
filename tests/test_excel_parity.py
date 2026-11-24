@@ -64,7 +64,7 @@ def _load_sheet_values(sheet_name: str) -> dict[int, dict[str, str]]:
 def test_model3_80_year_exact_parity() -> None:
     """Every year 0..80 in model3 matches our Python engine within $0.01."""
     m3 = _load_sheet_values("model3")
-    req = SimulationRequest(**SCENARIO_PRESETS["model3_default"]["params"])  # type: ignore[arg-type]
+    req = SimulationRequest(**{**SCENARIO_PRESETS["model3_default"]["params"], "legacy_excel_rmd": True})  # type: ignore[arg-type]
     res = run_simulation(req)
 
     assert len(res.projections) == 81
@@ -92,7 +92,7 @@ def test_model3_80_year_exact_parity() -> None:
 def test_datapage2_608_sweeps_exact_parity() -> None:
     """All 608 sweep points in DataPage2 match our Python engine within $0.01."""
     dp2 = _load_sheet_values("DataPage2")
-    base_params = dict(SCENARIO_PRESETS["datapage2_5m"]["params"])  # type: ignore[arg-type]
+    base_params = {**SCENARIO_PRESETS["datapage2_5m"]["params"], "legacy_excel_rmd": True}  # type: ignore[arg-type]
 
     checked = 0
     for r in range(54, 680):
@@ -125,14 +125,15 @@ def test_datapage2_608_sweeps_exact_parity() -> None:
 def test_strategy_sweep_matches_datapage2_rankings() -> None:
     """3-stage sweep matches DataPage2 rankings and finds equal or higher Net Worth per order."""
     dp2 = _load_sheet_values("DataPage2")
-    base_params = dict(SCENARIO_PRESETS["datapage2_5m"]["params"])  # type: ignore[arg-type]
+    base_params = {**SCENARIO_PRESETS["datapage2_5m"]["params"], "legacy_excel_rmd": True}  # type: ignore[arg-type]
     sweep_req = SweepRequest(**base_params)
     sweep_res = run_strategy_sweep(sweep_req)
 
     assert sweep_res.elapsed_ms < 3000.0
     assert len(sweep_res.summaries) == 6
     assert sweep_res.summaries[0].withdraw_order == "ROTH-BRKG-401K"
-    # Widening stage 2 below min(top3) finds $293k DTB ($1,877,759.04) beating DataPage2's $300k ($1,802,782.60)
+    # NOTE: intentional divergence from the workbook - widening stage 2 below min(top3) finds a $293k DTB
+    # ($1,877,759.04) that beats DataPage2's $300k ($1,802,782.60); the app optimum is better than the sheet's.
     assert sweep_res.summaries[0].best_dtb == pytest.approx(293000.0)
     assert sweep_res.summaries[0].net_worth_at_eval == pytest.approx(1877759.04, abs=0.05)
 
@@ -153,7 +154,7 @@ def test_strategy_sweep_matches_datapage2_rankings() -> None:
 
 def test_per_year_optimizer_and_dsb_vs_rate_performance() -> None:
     """Verify prompt2 per-year optimizer improves Net Worth and DSB-vs-rate runs quickly."""
-    base_params = dict(SCENARIO_PRESETS["model3_default"]["params"])  # type: ignore[arg-type]
+    base_params = {**SCENARIO_PRESETS["model3_default"]["params"], "legacy_excel_rmd": True}  # type: ignore[arg-type]
     per_yr_res = run_per_year_dtb_optimization(PerYearOptimizeRequest(**base_params))
     assert per_yr_res.elapsed_ms < 3000.0
     assert per_yr_res.optimized_net_worth >= per_yr_res.baseline_net_worth

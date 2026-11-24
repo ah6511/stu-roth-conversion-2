@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 WithdrawOrder = Literal[
     "BRKG-ROTH-401K",
@@ -61,6 +61,15 @@ class SimulationRequest(BaseModel):
     custom_ss: Optional[CustomSSConfig] = None
     custom_incomes: Optional[list[CustomIncomeRow]] = None
     dtb_overrides: Optional[dict[int, float]] = None
+    inflation_rate: float = Field(0.0, ge=0.0, le=0.2, description="Annual inflation applied to spending, DTB, income, brackets, IRMAA")
+    base_year: int = Field(2025, ge=2025, le=2100, description="Calendar year of Year 0")
+    legacy_excel_rmd: bool = Field(False, description="Use the workbook's shifted 1951-1959 RMD table")
+
+    @model_validator(mode="after")
+    def _check_eval_age(self) -> "SimulationRequest":
+        if self.eval_age > self.primary_age + 80:
+            raise ValueError("eval_age cannot exceed primary_age + 80 (simulation horizon)")
+        return self
 
 
 class YearProjection(BaseModel):

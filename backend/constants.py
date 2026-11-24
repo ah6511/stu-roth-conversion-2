@@ -37,9 +37,11 @@ _RMD_DIVISOR_SEQUENCE: tuple[float, ...] = (
     2.9, 2.8, 2.7, 2.5, 2.3, 2.0,
 )
 
+# Correct IRS Uniform Lifetime Table: age 73 = 26.5, 74 = 25.5, 75 = 24.6 ...
 RMD_DIVISORS_PRE_1960: dict[int, float] = {
-    73 + idx: (_RMD_DIVISOR_SEQUENCE[idx] if idx < len(_RMD_DIVISOR_SEQUENCE) else 2.0)
-    for idx in range(80)
+    73: 26.5,
+    74: 25.5,
+    **{75 + idx: (_RMD_DIVISOR_SEQUENCE[idx] if idx < len(_RMD_DIVISOR_SEQUENCE) else 2.0) for idx in range(80)},
 }
 
 RMD_DIVISORS_1960_PLUS: dict[int, float] = {
@@ -47,68 +49,31 @@ RMD_DIVISORS_1960_PLUS: dict[int, float] = {
     for idx in range(80)
 }
 
-# Medicare IRMAA 2026 monthly surcharges per enrolled beneficiary
+# Legacy table copied verbatim from retirement-planner-v3.xlsx "Tax Rates" (starts 24.6 at age 73,
+# two years early). Only used when legacy_excel_rmd=True (workbook parity tests).
+RMD_DIVISORS_PRE_1960_EXCEL: dict[int, float] = {
+    73 + idx: (_RMD_DIVISOR_SEQUENCE[idx] if idx < len(_RMD_DIVISOR_SEQUENCE) else 2.0)
+    for idx in range(80)
+}
+
+# Excel-formula quirks reproduced from model3 (kept as named constants for visibility)
+LEGACY_BRKG_WITHDRAW_YEARS = 11  # model3 uses grossed-up brokerage debit only for years 1..11
+
+# Medicare IRMAA 2026 monthly surcharges per enrolled beneficiary (CMS 2026 announcement;
+# verify against the current CMS notice before relying on them).
 IRMAA_BRACKETS_2026: tuple[dict[str, float | int | str | None], ...] = (
-    {
-        "tier": 1,
-        "label": "Tier 1 (Standard)",
-        "single_min": 0.0,
-        "single_max": 103000.0,
-        "mfj_min": 0.0,
-        "mfj_max": 206000.0,
-        "part_b_monthly": 0.0,
-        "part_d_monthly": 0.0,
-    },
-    {
-        "tier": 2,
-        "label": "Tier 2",
-        "single_min": 103001.0,
-        "single_max": 129000.0,
-        "mfj_min": 206001.0,
-        "mfj_max": 258000.0,
-        "part_b_monthly": 69.9,
-        "part_d_monthly": 13.7,
-    },
-    {
-        "tier": 3,
-        "label": "Tier 3",
-        "single_min": 129001.0,
-        "single_max": 161000.0,
-        "mfj_min": 258001.0,
-        "mfj_max": 322000.0,
-        "part_b_monthly": 174.7,
-        "part_d_monthly": 35.3,
-    },
-    {
-        "tier": 4,
-        "label": "Tier 4",
-        "single_min": 161001.0,
-        "single_max": 193000.0,
-        "mfj_min": 322001.0,
-        "mfj_max": 386000.0,
-        "part_b_monthly": 279.5,
-        "part_d_monthly": 56.9,
-    },
-    {
-        "tier": 5,
-        "label": "Tier 5",
-        "single_min": 193001.0,
-        "single_max": 500000.0,
-        "mfj_min": 386001.0,
-        "mfj_max": 750000.0,
-        "part_b_monthly": 384.3,
-        "part_d_monthly": 78.5,
-    },
-    {
-        "tier": 6,
-        "label": "Tier 6",
-        "single_min": 500001.0,
-        "single_max": None,
-        "mfj_min": 750001.0,
-        "mfj_max": None,
-        "part_b_monthly": 419.3,
-        "part_d_monthly": 85.8,
-    },
+    {"tier": 1, "label": "Tier 1 (Standard)", "single_min": 0.0, "single_max": 109000.0,
+     "mfj_min": 0.0, "mfj_max": 218000.0, "part_b_monthly": 0.0, "part_d_monthly": 0.0},
+    {"tier": 2, "label": "Tier 2", "single_min": 109001.0, "single_max": 137000.0,
+     "mfj_min": 218001.0, "mfj_max": 274000.0, "part_b_monthly": 81.2, "part_d_monthly": 14.5},
+    {"tier": 3, "label": "Tier 3", "single_min": 137001.0, "single_max": 171000.0,
+     "mfj_min": 274001.0, "mfj_max": 342000.0, "part_b_monthly": 202.9, "part_d_monthly": 37.5},
+    {"tier": 4, "label": "Tier 4", "single_min": 171001.0, "single_max": 205000.0,
+     "mfj_min": 342001.0, "mfj_max": 410000.0, "part_b_monthly": 324.6, "part_d_monthly": 60.4},
+    {"tier": 5, "label": "Tier 5", "single_min": 205001.0, "single_max": 500000.0,
+     "mfj_min": 410001.0, "mfj_max": 750000.0, "part_b_monthly": 446.3, "part_d_monthly": 83.3},
+    {"tier": 6, "label": "Tier 6", "single_min": 500001.0, "single_max": None,
+     "mfj_min": 750001.0, "mfj_max": None, "part_b_monthly": 487.0, "part_d_monthly": 91.0},
 )
 
 WITHDRAW_ORDERS: tuple[str, ...] = (
@@ -233,6 +198,7 @@ SCENARIO_PRESETS: dict[str, dict[str, object]] = {
             "dtb": 177000.0,
             "withdraw_order": "401K-ROTH-BRKG",
             "eval_age": 96,
+            "legacy_excel_rmd": True,
             "ss_profile": "Profile 1",
         },
     },
@@ -255,6 +221,7 @@ SCENARIO_PRESETS: dict[str, dict[str, object]] = {
             "dtb": 300000.0,
             "withdraw_order": "ROTH-BRKG-401K",
             "eval_age": 96,
+            "legacy_excel_rmd": True,
             "ss_profile": "Profile 1",
         },
     },
