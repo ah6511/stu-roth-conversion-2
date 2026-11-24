@@ -51,7 +51,7 @@ See [`deployment.md`](deployment.md) for AWS ECR login, image tagging, and push 
 
 ## Architecture
 
-- **`backend/constants.py`**: 2026 MFJ ordinary & long-term capital gains brackets, `$32,200` standard deduction, `3.8%` NIIT (`$250,000` MFJ threshold), IRS Uniform Lifetime Table RMD divisors (Born 1951–1959 starting age 73; Born 1960+ starting age 75), 2026 Medicare IRMAA tiers, Social Security profiles, and 1996–2025 historical equity returns.
+- **`backend/constants.py`**: 2026 MFJ ordinary & long-term capital gains brackets, `$32,200` standard deduction, `3.8%` NIIT (`$250,000` MFJ threshold), IRS Uniform Lifetime Table RMD divisors (Born 1951–1959 starting age 73; Born 1960+ starting age 75), 2026 Medicare IRMAA tiers (verify against the current CMS notice), Social Security profiles, and 1996–2025 historical equity returns.
 - **`backend/tax.py`**: Forward and inverse federal tax calculators, closed-form recursive tax solver `X = F(X + B)` (`Formula 1`), recursive brokerage capital gain rate solver (`Formula 2`), NIIT, RMD, and IRMAA lookup functions.
 - **`backend/engine.py`**: 80-year annual retirement cash-flow and Roth conversion engine:
   1. Computes primary and secondary 401(k) RMDs from beginning-of-year balances.
@@ -85,3 +85,11 @@ See [`deployment.md`](deployment.md) for AWS ECR login, image tagging, and push 
 ```bash
 .venv/bin/pytest -v
 ```
+
+## Differences from `retirement-planner-v3.xlsx`
+
+- **RMD table (born 1951-1959):** the two built-in presets set `legacy_excel_rmd: true` (workbook behaviour); the API default is the corrected to the IRS table (73 = 26.5, 74 = 25.5, 75 = 24.6). The workbook starts at 24.6 at age 73. Send `legacy_excel_rmd: true` to reproduce the workbook; the parity tests do this.
+- **IRMAA:** updated from 2024 to 2026 thresholds and surcharges.
+- **New request fields (all optional):** `inflation_rate` (default 0 = workbook behaviour; indexes spending, DTB, income, brackets and IRMAA), `base_year` (default 2025), `legacy_excel_rmd`.
+- `eval_age` may not exceed `primary_age + 80`.
+- Workbook formula quirks (`yr <= 11` brokerage debit, `yr == 1` NIIT/conversion special cases) are retained for parity.

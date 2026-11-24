@@ -33,7 +33,7 @@ def test_config_endpoint() -> None:
 
 
 def test_simulate_endpoint_and_custom_ss() -> None:
-    res = client.post("/api/simulate", json={})
+    res = client.post("/api/simulate", json={"legacy_excel_rmd": True})
     assert res.status_code == 200
     body = res.json()
     assert body["summary"]["net_worth_year0"] == 3000000.0

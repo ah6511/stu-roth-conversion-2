@@ -11,6 +11,7 @@ from backend.constants import (
     ORDINARY_TAX_BRACKETS_MFJ,
     RMD_DIVISORS_1960_PLUS,
     RMD_DIVISORS_PRE_1960,
+    RMD_DIVISORS_PRE_1960_EXCEL,
     STD_DEDUCTION_MFJ,
 )
 
@@ -115,17 +116,24 @@ def capital_gain_rate(gross_income: float, apply_std_deduction: bool = True) -> 
 
 
 def solve_recursive_cgr(inc_plus_to_gain: float, dwd: float, cgp: float) -> float:
-    """Formula 2: determine LTCG tax rate when brokerage withdrawal is grossed up for tax."""
+    """Formula 2: determine LTCG tax rate when brokerage withdrawal is grossed up for tax.
+
+    Thresholds derive from CAP_GAIN_BRACKETS_MFJ (taxable-income breakpoints + standard deduction).
+    """
+    top_0 = int(CAP_GAIN_BRACKETS_MFJ[1][0] - 1 + STD_DEDUCTION_MFJ)  # 131,100
+    top_15 = int(CAP_GAIN_BRACKETS_MFJ[2][0] - 1 + STD_DEDUCTION_MFJ)  # 645,900
+    r15 = CAP_GAIN_BRACKETS_MFJ[1][2]
+    r20 = CAP_GAIN_BRACKETS_MFJ[2][2]
     y0 = int(inc_plus_to_gain + dwd * cgp)
-    if 0 <= y0 <= 131100:
-        return 0.0
-    y15 = int(inc_plus_to_gain + (dwd * cgp) / (1.0 - cgp * 0.15))
-    if 131101 <= y15 <= 645900:
-        return 0.15
-    y20 = int(inc_plus_to_gain + (dwd * cgp) / (1.0 - cgp * 0.20))
-    if y20 >= 645901:
-        return 0.20
-    return 0.15
+    if 0 <= y0 <= top_0:
+        return CAP_GAIN_BRACKETS_MFJ[0][2]
+    y15 = int(inc_plus_to_gain + (dwd * cgp) / (1.0 - cgp * r15))
+    if top_0 + 1 <= y15 <= top_15:
+        return r15
+    y20 = int(inc_plus_to_gain + (dwd * cgp) / (1.0 - cgp * r20))
+    if y20 >= top_15 + 1:
+        return r20
+    return r15
 
 
 def niit_taxable_gain(
@@ -146,10 +154,14 @@ def niit_tax(
     return niit_taxable_gain(gross_income, capital_gain, threshold) * NIIT_RATE
 
 
-def rmd_divisor(age: int, birth_year: int) -> float:
-    """IRS Uniform Lifetime Table divisor given current age and birth year."""
+def rmd_divisor(age: int, birth_year: int, legacy_excel: bool = False) -> float:
+    """IRS Uniform Lifetime Table divisor given current age and birth year.
+
+    legacy_excel=True reproduces the workbook's (shifted) 1951-1959 table.
+    """
     if birth_year < 1960:
-        return RMD_DIVISORS_PRE_1960.get(age, 0.0)
+        table = RMD_DIVISORS_PRE_1960_EXCEL if legacy_excel else RMD_DIVISORS_PRE_1960
+        return table.get(age, 0.0)
     return RMD_DIVISORS_1960_PLUS.get(age, 0.0)
 
 
@@ -163,12 +175,7 @@ def irmaa_surcharge(
     max_key = "mfj_max" if filing_status == "MFJ" else "single_max"
     chosen = IRMAA_BRACKETS_2026[0]
     for tier in IRMAA_BRACKETS_2026:
-        low = float(tier[min_key])  # type: ignore[arg-type]
-        high = tier[max_key]
-        if magi >= low and (high is None or magi <= float(high)):  # type: ignore[arg-type]
-            chosen = tier
-            break
-        if magi > low:
+        if magi > float(tier[min_key]) - 1.0:  # tier mins are "$X,001" style; > previous max
             chosen = tier
     part_b = float(chosen["part_b_monthly"])  # type: ignore[arg-type]
     part_d = float(chosen["part_d_monthly"])  # type: ignore[arg-type]

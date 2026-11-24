@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Optional
 
 from backend.constants import (
-    BASE_YEAR,
+    LEGACY_BRKG_WITHDRAW_YEARS,
     NIIT_RATE,
     SIMULATION_YEARS,
     SS_PROFILES,
@@ -17,14 +17,14 @@ from backend.schemas import (
     YearProjection,
 )
 from backend.tax import (
-    capital_gain_rate,
+    capital_gain_rate as _capital_gain_rate,
     irmaa_surcharge,
     niit_taxable_gain,
-    ordinary_income_tax,
+    ordinary_income_tax as _ordinary_income_tax,
     ordinary_marginal_rate_model3,
     rmd_divisor,
     solve_recursive_cgr,
-    solve_recursive_tax,
+    solve_recursive_tax as _solve_recursive_tax,
 )
 
 
@@ -79,8 +79,11 @@ def _run_core(
 
     c4 = req.primary_age
     d4 = req.secondary_age
-    p_birth_year = BASE_YEAR - c4
-    s_birth_year = BASE_YEAR - d4
+    base_year = req.base_year
+    infl = req.inflation_rate
+    legacy_rmd = req.legacy_excel_rmd
+    p_birth_year = base_year - c4
+    s_birth_year = base_year - d4
 
     e4 = req.brkg_balance
     f4 = req.brkg_rate
@@ -129,7 +132,7 @@ def _run_core(
         rows.append(
             YearProjection(
                 year_index=0,
-                year=BASE_YEAR,
+                year=base_year,
                 primary_age=c4,
                 secondary_age=d4,
                 earned_income=0.0,
@@ -181,17 +184,28 @@ def _run_core(
     for yr in range(1, SIMULATION_YEARS + 1):
         p_age = c4 + yr
         s_age = d4 + yr
-        ba = income_schedule[yr - 1]
+        k = (1.0 + infl) ** yr  # inflation index (1.0 when inflation_rate == 0)
+        ba = income_schedule[yr - 1] * k
+
+        def ordinary_income_tax(x: float) -> float:
+            return k * _ordinary_income_tax(x / k)
+
+        def solve_recursive_tax(x: float, clamp_min_std_ded: bool = True) -> float:
+            return k * _solve_recursive_tax(x / k, clamp_min_std_ded)
+
+        def capital_gain_rate(x: float) -> float:
+            return _capital_gain_rate(x / k)
+
 
         # Step A: 401(k) BOY balances & RMD lookahead
         fg = max(fn_prev, 0.0)
         fi = fg * k4
-        fj = rmd_divisor(p_age, p_birth_year)
+        fj = rmd_divisor(p_age, p_birth_year, legacy_rmd)
         fk = 0.0 if fj == 0.0 else fg / fj
 
         fp = max(fw_prev, 0.0)
         fr = fp * k4
-        fs = rmd_divisor(s_age, s_birth_year)
+        fs = rmd_divisor(s_age, s_birth_year, legacy_rmd)
         ft = 0.0 if fs == 0.0 else fp / fs
 
         fy = fg + fp
@@ -199,7 +213,7 @@ def _run_core(
 
         # Step B: Spending budget & withdrawal order allocation
         bc = ba + ga  # INC1 = EI + RMD
-        bd = n4       # DSB
+        bd = n4 * k   # DSB (inflated)
         bq = id_prev * (1.0 + f4)
         br = ge_prev * (1.0 + k4)
         bs = iu_prev * (1.0 + m4)
@@ -270,7 +284,7 @@ def _run_core(
 
         # Step C: Roth Conversion Bracket-Filling (Stage 0 -> Stage 1 -> Stage 2)
         da = bc + cv
-        de = overrides[yr] if yr in overrides else o4
+        de = (overrides[yr] if yr in overrides else o4) * k
         dh = min(br, de)
         di = bd if cv > 0.0 else 0.0
         dl = bc - bf
@@ -346,12 +360,12 @@ def _run_core(
         gs = fc
         gt = gs + hm
         gu = max(0.0, cu)
-        gw = solve_recursive_cgr(gt, gu, hj)
+        gw = solve_recursive_cgr(gt / k, gu / k, hj)
 
         gx = cu
         gy = gu
         gz = gy / (1.0 - hj * gw)
-        if yr <= 11:
+        if yr <= LEGACY_BRKG_WITHDRAW_YEARS:
             ha = gz if gz < id_prev else id_prev
         else:
             ha = gx if gx < id_prev else id_prev
@@ -402,19 +416,19 @@ def _run_core(
             acc_tax += am
             acc_cg_tax += ak + al
 
-            gn = ordinary_marginal_rate_model3(fc)
+            gn = ordinary_marginal_rate_model3(fc / k)
             ie_debit = gx + hv
             total_exp = bg + am
             total_fund = ba + ie_debit + ga + gc + cw
             eff_rate = (am / (ii + ho)) if yr == 1 and (ii + ho) != 0.0 else ((am / ii) if ii != 0.0 else 0.0)
 
             num_enrolled = (1 if p_age >= 65 else 0) + (1 if s_age >= 65 else 0)
-            irmaa = irmaa_surcharge(ii, "MFJ", num_enrolled=num_enrolled)
+            irmaa = irmaa_surcharge(ii / k, "MFJ", num_enrolled=num_enrolled)
 
             rows.append(
                 YearProjection(
                     year_index=yr,
-                    year=BASE_YEAR + yr,
+                    year=base_year + yr,
                     primary_age=p_age,
                     secondary_age=s_age,
                     earned_income=ba,
@@ -499,7 +513,7 @@ def run_simulation(req: SimulationRequest) -> SimulationResponse:
     shortfall_age: Optional[int] = None
     shortfall_yr: Optional[int] = None
     for row in rows[1:]:
-        if row.actual_spending < req.dsb - 1e-6:
+        if row.actual_spending < req.dsb * (1.0 + req.inflation_rate) ** row.year_index - 1e-6:
             shortfall_age = row.primary_age
             shortfall_yr = row.year_index
             break

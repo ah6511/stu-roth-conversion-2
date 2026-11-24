@@ -80,22 +80,23 @@ def test_capital_gains_and_niit() -> None:
 
 
 def test_rmd_and_irmaa() -> None:
-    # Born 1959 -> starts at age 73 with divisor 24.6
+    # Born 1959 -> starts at age 73 with IRS divisor 26.5 (workbook's table says 24.6)
     assert rmd_divisor(72, 1959) == 0.0
-    assert rmd_divisor(73, 1959) == pytest.approx(24.6)
+    assert rmd_divisor(73, 1959) == pytest.approx(26.5)
+    assert rmd_divisor(73, 1959, legacy_excel=True) == pytest.approx(24.6)
     # Born 1960 -> starts at age 75 with divisor 24.6
     assert rmd_divisor(74, 1960) == 0.0
     assert rmd_divisor(75, 1960) == pytest.approx(24.6)
 
-    t1 = irmaa_surcharge(206000.0, "MFJ", num_enrolled=2)
+    t1 = irmaa_surcharge(218000.0, "MFJ", num_enrolled=2)
     assert t1["tier"] == 1
     assert t1["annual_total"] == pytest.approx(0.0)
 
-    t2 = irmaa_surcharge(206001.0, "MFJ", num_enrolled=2)
+    t2 = irmaa_surcharge(218001.0, "MFJ", num_enrolled=2)
     assert t2["tier"] == 2
-    assert t2["monthly_per_person"] == pytest.approx(83.6)
-    assert t2["annual_total"] == pytest.approx(83.6 * 24.0)
+    assert t2["monthly_per_person"] == pytest.approx(95.7)
+    assert t2["annual_total"] == pytest.approx(95.7 * 24.0)
 
     t6 = irmaa_surcharge(800000.0, "MFJ", num_enrolled=2)
     assert t6["tier"] == 6
-    assert t6["monthly_per_person"] == pytest.approx(505.1)
+    assert t6["monthly_per_person"] == pytest.approx(578.0)
