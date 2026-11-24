@@ -13,6 +13,7 @@ def test_root_and_health() -> None:
     res = client.get("/")
     assert res.status_code == 200
     assert "Roth Conversion" in res.text
+    assert 'id="inflation_rate"' in res.text
 
     health = client.get("/api/health")
     assert health.status_code == 200
@@ -27,13 +28,23 @@ def test_config_endpoint() -> None:
     assert len(data["withdraw_orders"]) == 6
     assert "model3_default" in data["presets"]
     assert "datapage2_5m" in data["presets"]
+    assert data["presets"]["model3_default"]["params"]["inflation_rate"] == 0.03
+    assert data["presets"]["datapage2_5m"]["params"]["inflation_rate"] == 0.03
     assert len(data["ordinary_brackets_mfj"]) == 7
     assert len(data["irmaa_brackets_2026"]) == 6
     assert len(data["historic_returns"]["rows"]) == 30
 
 
 def test_simulate_endpoint_and_custom_ss() -> None:
-    res = client.post("/api/simulate", json={"legacy_excel_rmd": True})
+    # Default request uses 3% inflation
+    default_res = client.post("/api/simulate", json={})
+    assert default_res.status_code == 200
+    yr10_def = default_res.json()["projections"][10]
+    assert abs(yr10_def["earned_income"] - 100000.0 * (1.03 ** 10)) < 0.01
+    assert abs(yr10_def["dtb_applied"] - 177000.0 * (1.03 ** 10)) < 0.01
+
+    # Explicit 0% inflation + legacy RMD matches workbook parity
+    res = client.post("/api/simulate", json={"inflation_rate": 0.0, "legacy_excel_rmd": True})
     assert res.status_code == 200
     body = res.json()
     assert body["summary"]["net_worth_year0"] == 3000000.0
@@ -58,9 +69,28 @@ def test_simulate_endpoint_and_custom_ss() -> None:
         },
     )
     assert custom.status_code == 200
-    assert custom.json()["projections"][1]["earned_income"] == 80000.0
-    assert custom.json()["projections"][1]["dtb_applied"] == 250000.0
+    assert abs(custom.json()["projections"][1]["earned_income"] - 80000.0 * 1.03) < 0.01
+    assert abs(custom.json()["projections"][1]["dtb_applied"] - 250000.0 * 1.03) < 0.01
     assert custom.json()["projections"][2]["dtb_applied"] == 0.0
+
+    # Inflation rate applies to spending (DSB), Social Security / income, and DTB
+    infl = client.post(
+        "/api/simulate",
+        json={"inflation_rate": 0.03, "dsb": 200000, "dtb": 177000, "ss_profile": "Profile 1"},
+    )
+    assert infl.status_code == 200
+    yr10 = infl.json()["projections"][10]
+    factor10 = 1.03 ** 10
+    assert abs(yr10["actual_spending"] - 200000.0 * factor10) < 0.01
+    assert abs(yr10["earned_income"] - 100000.0 * factor10) < 0.01
+    assert abs(yr10["dtb_applied"] - 177000.0 * factor10) < 0.01
+
+    infl_sweep = client.post(
+        "/api/optimize/sweep",
+        json={"inflation_rate": 0.03, "withdraw_orders": ["ROTH-BRKG-401K"], "dtb_max": 400000},
+    )
+    assert infl_sweep.status_code == 200
+    assert len(infl_sweep.json()["summaries"]) == 1
 
 
 def test_simulate_validation_error() -> None:
@@ -81,6 +111,7 @@ def test_optimize_endpoints() -> None:
             "roth_rate": 0.07,
             "secondary_age": 62,
             "dsb": 400000,
+            "inflation_rate": 0.0,
         },
     )
     assert sweep.status_code == 200

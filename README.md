@@ -90,6 +90,6 @@ See [`deployment.md`](deployment.md) for AWS ECR login, image tagging, and push 
 
 - **RMD table (born 1951-1959):** the two built-in presets set `legacy_excel_rmd: true` (workbook behaviour); the API default is the corrected to the IRS table (73 = 26.5, 74 = 25.5, 75 = 24.6). The workbook starts at 24.6 at age 73. Send `legacy_excel_rmd: true` to reproduce the workbook; the parity tests do this.
 - **IRMAA:** updated from 2024 to 2026 thresholds and surcharges.
-- **New request fields (all optional):** `inflation_rate` (default 0 = workbook behaviour; indexes spending, DTB, income, brackets and IRMAA), `base_year` (default 2025), `legacy_excel_rmd`.
+- **New request/UI options (all optional):** `inflation_rate` (default `0.03` / `3%` in UI and API; set `0` for unindexed workbook parity; indexes spending `DSB`, Social Security & earned income, `DTB`, ordinary/capital-gains brackets, standard deduction, and IRMAA thresholds while keeping the statutory `$250k` NIIT threshold unindexed), `base_year` (default `2025`), `legacy_excel_rmd`.
 - `eval_age` may not exceed `primary_age + 80`.
 - Workbook formula quirks (`yr <= 11` brokerage debit, `yr == 1` NIIT/conversion special cases) are retained for parity.

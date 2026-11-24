@@ -34,6 +34,7 @@ const PERCENT_FIELDS = new Set([
   "brkg_turnover_rate",
   "k401_rate",
   "roth_rate",
+  "inflation_rate",
 ]);
 
 /* ---------- Theme Toggle (dark-mode-toggle) ---------- */
@@ -196,6 +197,7 @@ function readScenarioPayload() {
     roth_rate: getNum("roth_rate") / 100,
     dsb: getNum("dsb"),
     dtb: getNum("dtb"),
+    inflation_rate: getNum("inflation_rate") / 100,
     withdraw_order: form.elements.namedItem("withdraw_order").value,
     ss_profile: ssProf === "Custom" ? "None" : ssProf,
     legacy_excel_rmd: Boolean(state.legacyExcelRmd),
@@ -224,8 +226,12 @@ function validateInput(input) {
   if (input.name === "eval_age") {
     const pAge = Number(document.getElementById("primary_age").value);
     const eAge = Number(input.value);
-    if (!Number.isNaN(pAge) && !Number.isNaN(eAge) && eAge <= pAge) {
-      input.setCustomValidity(`Evaluation age must exceed Primary Age (${pAge}).`);
+    if (!Number.isNaN(pAge) && !Number.isNaN(eAge)) {
+      if (eAge <= pAge) {
+        input.setCustomValidity(`Evaluation age must exceed Primary Age (${pAge}).`);
+      } else if (eAge > pAge + 80) {
+        input.setCustomValidity(`Evaluation age cannot exceed Primary Age + 80 (${pAge + 80}).`);
+      }
     }
   }
   const errEl = document.getElementById(`err-${input.id}`);
@@ -298,7 +304,7 @@ function makeCell(tag, text, cls = "") {
 }
 
 /* ---------- Render Simulation Results ---------- */
-function renderSimulation(sim) {
+function renderSimulation(sim, inflationRate = 0) {
   state.simulation = sim;
   const s = sim.summary;
 
@@ -306,7 +312,14 @@ function renderSimulation(sim) {
   document.getElementById("kpi-yr0-ret").textContent = `Yr 0 return: ${fmtCurrency(s.year0_return)}`;
   document.getElementById("kpi-nw-eval-label").textContent = `Net Worth @ Age ${s.eval_age}`;
   document.getElementById("kpi-nw-eval").textContent = fmtCurrency(s.net_worth_at_eval);
-  document.getElementById("kpi-wo-sub").textContent = `Order: ${s.withdraw_order}`;
+  const p0Age = sim.projections[0]?.primary_age ?? 0;
+  const evalYrs = Math.max(0, s.eval_age - p0Age);
+  if (inflationRate > 0 && evalYrs > 0) {
+    const realNw = s.net_worth_at_eval / Math.pow(1 + inflationRate, evalYrs);
+    document.getElementById("kpi-wo-sub").textContent = `Order: ${s.withdraw_order} · Today's $: ${fmtCurrency(realNw)}`;
+  } else {
+    document.getElementById("kpi-wo-sub").textContent = `Order: ${s.withdraw_order}`;
+  }
   document.getElementById("kpi-acc-tax-tv").textContent = fmtCurrency(s.acc_tax_tv_at_eval);
   document.getElementById("kpi-acc-tax-nom").textContent = `Nominal: ${fmtCurrency(s.acc_tax_at_eval)}`;
   document.getElementById("kpi-roth-conv").textContent = fmtCurrency(s.total_roth_converted);
@@ -840,8 +853,9 @@ async function executeSimulation() {
   try {
     const payload = readScenarioPayload();
     const sim = await runSimulation(payload, state.simAbort.signal);
-    renderSimulation(sim);
-    status.textContent = `Updated projection (${sim.summary.withdraw_order}, Eval @ Age ${sim.summary.eval_age}).`;
+    renderSimulation(sim, payload.inflation_rate);
+    const inflTxt = payload.inflation_rate > 0 ? `, ${(payload.inflation_rate * 100).toFixed(1)}% inflation` : "";
+    status.textContent = `Updated projection (${sim.summary.withdraw_order}, Eval @ Age ${sim.summary.eval_age}${inflTxt}).`;
   } catch (err) {
     if (err.name !== "AbortError") {
       status.textContent = `Error: ${err.message}`;

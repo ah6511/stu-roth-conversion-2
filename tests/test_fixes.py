@@ -36,12 +36,17 @@ def test_cgr_thresholds_from_bracket_table() -> None:
 
 
 def test_zero_inflation_is_identity_and_inflation_changes_results() -> None:
-    base = run_simulation(_req(legacy_excel_rmd=True))
+    default_req = _req()
+    assert default_req.inflation_rate == 0.03
+    default_sim = run_simulation(default_req)
+    explicit_3pct = run_simulation(_req(inflation_rate=0.03))
+    assert default_sim.summary.net_worth_at_eval == explicit_3pct.summary.net_worth_at_eval
+
     zero = run_simulation(_req(legacy_excel_rmd=True, inflation_rate=0.0))
-    assert base.summary.net_worth_at_eval == zero.summary.net_worth_at_eval
-    infl = run_simulation(_req(inflation_rate=0.03))
-    assert infl.projections[10].year == 2035
-    assert infl.summary.net_worth_at_eval != base.summary.net_worth_at_eval
+    zero_again = run_simulation(_req(legacy_excel_rmd=True, inflation_rate=0.0))
+    assert zero.summary.net_worth_at_eval == zero_again.summary.net_worth_at_eval
+    assert explicit_3pct.projections[10].year == 2035
+    assert explicit_3pct.summary.net_worth_at_eval != zero.summary.net_worth_at_eval
 
 
 def test_eval_age_beyond_horizon_rejected() -> None:

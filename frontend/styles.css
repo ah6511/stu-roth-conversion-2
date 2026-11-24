@@ -307,7 +307,8 @@ body {
 
 .field {
   display: grid;
-  grid-template-rows: 1fr auto auto;
+  grid-template-rows: 1fr;
+  grid-auto-rows: auto;
   gap: 0.25rem;
   margin-block-end: 0;
   min-inline-size: 0;
@@ -359,6 +360,13 @@ input[type="radio"] {
   accent-color: var(--accent);
   inline-size: 1.15rem;
   block-size: 1.15rem;
+}
+
+.field-hint {
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  margin-block-start: 0.1rem;
 }
 
 .field-error {

@@ -61,7 +61,7 @@ class SimulationRequest(BaseModel):
     custom_ss: Optional[CustomSSConfig] = None
     custom_incomes: Optional[list[CustomIncomeRow]] = None
     dtb_overrides: Optional[dict[int, float]] = None
-    inflation_rate: float = Field(0.0, ge=0.0, le=0.2, description="Annual inflation applied to spending, DTB, income, brackets, IRMAA")
+    inflation_rate: float = Field(0.03, ge=0.0, le=0.2, description="Annual inflation applied to spending, DTB, income, brackets, IRMAA")
     base_year: int = Field(2025, ge=2025, le=2100, description="Calendar year of Year 0")
     legacy_excel_rmd: bool = Field(False, description="Use the workbook's shifted 1951-1959 RMD table")
 

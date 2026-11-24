@@ -9,11 +9,13 @@ The Python engine reproduces the workbook's cached values exactly (`model3` for 
 ## Findings
 
 ### Errors copied from the workbook
+
 1. **RMD table for people born 1951–1959 is shifted two years.** The workbook ("Tax Rates" sheet) and the code started at divisor 24.6 at age 73. The IRS Uniform Lifetime Table gives 26.5 at 73, 25.5 at 74 and 24.6 at 75. RMDs were overstated for this cohort. The 1960+ table was correct.
 2. **IRMAA data labeled 2026 was actually 2024.** Thresholds (MFJ $206k/$258k/$322k/$386k/$750k) and surcharges (Part B $69.90 to $419.30) were 2024 values.
 3. **IRMAA is approximated.** It uses current-year gross income (not MAGI with the 2-year lookback) and unindexed thresholds. It is reported only and never reduces spending or net worth.
 
 ### Modeling limitations
+
 - No inflation: spending, Social Security, brackets and thresholds were flat for 80 years.
 - Hard-coded Excel quirks: `yr <= 11` (brokerage debit) and `yr == 1` (NIIT and conversion formulas).
 - Hard-coded `BASE_YEAR = 2025` (tax tables are 2026) drives birth years and RMD start ages.
@@ -21,6 +23,7 @@ The Python engine reproduces the workbook's cached values exactly (`model3` for 
 - Single-filer and surviving-spouse years are not modeled (the engine is MFJ-only).
 
 ### Code issues
+
 - `solve_recursive_cgr` used literal thresholds (131100 / 645900) instead of the bracket table.
 - `eval_age` allowed up to 140 but was silently clamped to the 80-year horizon.
 - `irmaa_surcharge` had a confusing overlapping fallback in its tier lookup.
@@ -30,7 +33,7 @@ The Python engine reproduces the workbook's cached values exactly (`model3` for 
 ## Fixes applied
 
 | Area | Change |
-|---|---|
+| --- | --- |
 | RMD | `constants.py` now holds the IRS table. The workbook's old table is kept as `RMD_DIVISORS_PRE_1960_EXCEL`, selected with `legacy_excel_rmd=True`. |
 | IRMAA | Updated to 2026 thresholds and surcharges (MFJ tier 2 starts at $218k). **Entered from memory of the CMS announcement. Verify against the current CMS notice.** |
 | Capital gains | `solve_recursive_cgr` derives its thresholds from `CAP_GAIN_BRACKETS_MFJ` and `STD_DEDUCTION_MFJ`. |

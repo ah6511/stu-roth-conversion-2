@@ -56,22 +56,30 @@
 
         <div class="assumptions-grid">
           <fieldset class="input-group">
-            <legend>Ages &amp; Horizon</legend>
-            <div class="field-grid-3">
-              <div class="field">
-                <label for="primary_age">Primary Age</label>
-                <input id="primary_age" name="primary_age" type="number" inputmode="numeric" min="40" max="100" step="1" required aria-describedby="err-primary_age">
-                <span class="field-error" id="err-primary_age" hidden></span>
+            <legend>Ages, Horizon &amp; Inflation</legend>
+            <div class="field-stack">
+              <div class="field-grid-3">
+                <div class="field">
+                  <label for="primary_age">Primary Age</label>
+                  <input id="primary_age" name="primary_age" type="number" inputmode="numeric" min="40" max="100" step="1" required aria-describedby="err-primary_age">
+                  <span class="field-error" id="err-primary_age" hidden></span>
+                </div>
+                <div class="field">
+                  <label for="secondary_age">Spouse Age</label>
+                  <input id="secondary_age" name="secondary_age" type="number" inputmode="numeric" min="40" max="100" step="1" required aria-describedby="err-secondary_age">
+                  <span class="field-error" id="err-secondary_age" hidden></span>
+                </div>
+                <div class="field">
+                  <label for="eval_age">Eval Age</label>
+                  <input id="eval_age" name="eval_age" type="number" inputmode="numeric" min="67" max="140" step="1" required aria-describedby="err-eval_age">
+                  <span class="field-error" id="err-eval_age" hidden></span>
+                </div>
               </div>
               <div class="field">
-                <label for="secondary_age">Spouse Age</label>
-                <input id="secondary_age" name="secondary_age" type="number" inputmode="numeric" min="40" max="100" step="1" required aria-describedby="err-secondary_age">
-                <span class="field-error" id="err-secondary_age" hidden></span>
-              </div>
-              <div class="field">
-                <label for="eval_age">Eval Age</label>
-                <input id="eval_age" name="eval_age" type="number" inputmode="numeric" min="67" max="140" step="1" required aria-describedby="err-eval_age">
-                <span class="field-error" id="err-eval_age" hidden></span>
+                <label for="inflation_rate">Inflation Rate (%)</label>
+                <input id="inflation_rate" name="inflation_rate" type="number" inputmode="decimal" min="0" max="20" step="0.1" value="3" required aria-describedby="hint-inflation_rate err-inflation_rate">
+                <span class="field-hint" id="hint-inflation_rate">Indexes spending (DSB), Social Security &amp; income, DTB, tax brackets, and IRMAA thresholds.</span>
+                <span class="field-error" id="err-inflation_rate" hidden></span>
               </div>
             </div>
           </fieldset>
